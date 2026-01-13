@@ -11,7 +11,8 @@ import {
   ArrowDownRight,
   Filter,
   ListTodo,
-  CheckCircle
+  CheckCircle,
+  Activity
 } from 'lucide-react';
 import { 
   BarChart, 
@@ -40,7 +41,7 @@ const Dashboard: React.FC<DashboardProps> = ({ customers, opportunities, events,
   const stats = [
     { label: 'Toplam Müşteri', value: customers.length, icon: <Users className="text-blue-600" />, change: '+%12', trend: 'up' },
     { label: 'Aktif Fırsatlar', value: opportunities.length, icon: <Briefcase className="text-purple-600" />, change: '+%5', trend: 'up' },
-    { label: 'Beklenen Gelir', value: `₺${totalRevenue.toLocaleString()}`, icon: <TrendingUp className="text-emerald-600" />, change: '+%18', trend: 'up' },
+    { label: 'Eğitmen Doluluk', value: '%74', icon: <Activity className="text-emerald-600" />, change: '+%8', trend: 'up' },
     { label: 'Yaklaşan Eğitimler', value: events.length, icon: <CalendarIcon className="text-amber-600" />, change: '-%2', trend: 'down' },
   ];
 
@@ -97,7 +98,6 @@ const Dashboard: React.FC<DashboardProps> = ({ customers, opportunities, events,
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 space-y-8">
-          {/* Sales Funnel Chart */}
           <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
             <div className="flex items-center justify-between mb-8">
               <div className="flex items-center gap-3">
@@ -139,7 +139,6 @@ const Dashboard: React.FC<DashboardProps> = ({ customers, opportunities, events,
         </div>
 
         <div className="space-y-8">
-          {/* Upcoming Trainings Widget */}
           <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col">
             <div className="flex items-center gap-3 mb-6">
               <div className="w-8 h-8 bg-amber-100 text-amber-600 rounded-lg flex items-center justify-center">
@@ -178,7 +177,6 @@ const Dashboard: React.FC<DashboardProps> = ({ customers, opportunities, events,
             </button>
           </div>
 
-          {/* Pending Tasks Widget */}
           <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col">
             <div className="flex items-center gap-3 mb-6">
               <div className="w-8 h-8 bg-blue-100 text-blue-600 rounded-lg flex items-center justify-center">
