@@ -13,10 +13,16 @@ import {
   Loader2,
   CalendarDays,
   ListTodo,
-  Filter
+  Filter,
+  Sparkles,
+  ChevronRight,
+  TrendingUp,
+  BrainCircuit,
+  Pencil
 } from 'lucide-react';
 import { Opportunity, Customer, OpportunityStatus, OpportunityTask, TaskStatus } from '../types';
 import { STATUS_STEPS } from '../constants';
+import { GoogleGenAI } from "@google/genai";
 
 interface SalesOpportunitiesProps {
   opportunities: Opportunity[];
@@ -32,34 +38,32 @@ const StatusBar: React.FC<{ currentStatus: OpportunityStatus, onStatusClick: (s:
   const currentIndex = STATUS_STEPS.indexOf(currentStatus);
   
   return (
-    <div className="flex items-center w-full gap-2 py-4">
+    <div className="flex items-center w-full gap-1 py-4 px-2">
       {STATUS_STEPS.map((status, index) => {
         const isCompleted = index < currentIndex;
         const isActive = index === currentIndex;
-        const isLast = index === STATUS_STEPS.length - 1;
-
+        
         return (
           <React.Fragment key={status}>
             <button 
               onClick={() => onStatusClick(status)}
-              className="flex flex-col items-center gap-2 group flex-1 focus:outline-none"
+              className={`flex-1 flex flex-col items-center gap-2 group focus:outline-none relative py-2`}
             >
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${
-                isCompleted ? 'bg-emerald-100 text-emerald-600' : 
-                isActive ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/30 ring-4 ring-blue-50' : 
-                'bg-slate-100 text-slate-400 group-hover:bg-slate-200'
-              }`}>
-                {isCompleted ? <CheckCircle2 size={16} /> : <span className="text-xs font-bold font-heading">{index + 1}</span>}
+              <div className={`w-full h-1.5 rounded-full transition-all duration-500 ${
+                 isCompleted ? 'bg-emerald-400' : 
+                 isActive ? 'bg-blue-600' : 
+                 'bg-slate-100 group-hover:bg-slate-200'
+              }`}></div>
+              
+              <div className={`absolute top-6 opacity-0 group-hover:opacity-100 ${isActive ? 'opacity-100' : ''} transition-all duration-300`}>
+                <span className={`text-[9px] uppercase font-black tracking-widest whitespace-nowrap px-2 py-1 rounded-lg ${
+                  isActive ? 'text-blue-600 bg-blue-50' : isCompleted ? 'text-emerald-600 bg-emerald-50' : 'text-slate-400 bg-slate-50'
+                }`}>
+                  {status}
+                </span>
               </div>
-              <span className={`text-[10px] uppercase font-bold tracking-tight whitespace-nowrap font-heading ${
-                isActive ? 'text-blue-600' : isCompleted ? 'text-emerald-600' : 'text-slate-400'
-              }`}>
-                {status}
-              </span>
             </button>
-            {!isLast && (
-              <div className={`h-0.5 flex-1 mx-2 ${isCompleted ? 'bg-emerald-200' : 'bg-slate-100'}`}></div>
-            )}
+            {index < STATUS_STEPS.length - 1 && <div className="w-1" />}
           </React.Fragment>
         );
       })}
@@ -82,6 +86,10 @@ const SalesOpportunities: React.FC<SalesOpportunitiesProps> = ({
   
   // State for filtering tasks per opportunity
   const [taskFilters, setTaskFilters] = useState<{ [key: string]: TaskStatus | 'Hepsi' }>({});
+  
+  // AI Generation State
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [aiSuggestion, setAiSuggestion] = useState<string | null>(null);
 
   const [formData, setFormData] = useState({
     customerId: '',
@@ -89,6 +97,34 @@ const SalesOpportunities: React.FC<SalesOpportunitiesProps> = ({
     description: '',
     dateRequest: ''
   });
+
+  const handleGenerateOutline = async (opp: Opportunity) => {
+    if(!process.env.API_KEY) {
+      alert("API Key eksik!"); 
+      return;
+    }
+    
+    setIsGenerating(true);
+    setAiSuggestion(null);
+    try {
+      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+      const response = await ai.models.generateContent({
+        model: 'gemini-2.0-flash-exp',
+        contents: `Eğitim Şirketi için bir taslak oluştur.
+        Müşteri: ${opp.customerName}
+        Konu: ${opp.trainingType}
+        Notlar: ${opp.description}
+        
+        Lütfen 3 maddelik kısa bir eğitim içeriği önerisi ve 2 adet satış odaklı "kazanım" maddesi yaz.`,
+      });
+      setAiSuggestion(response.text);
+    } catch (e) {
+      console.error(e);
+      alert("AI yanıtı alınamadı.");
+    } finally {
+      setIsGenerating(false);
+    }
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -126,9 +162,9 @@ const SalesOpportunities: React.FC<SalesOpportunitiesProps> = ({
 
   const getTaskIcon = (status: TaskStatus) => {
     switch (status) {
-      case TaskStatus.DONE: return <CheckCircle className="text-emerald-500" size={16} />;
-      case TaskStatus.IN_PROGRESS: return <Loader2 className="text-blue-500 animate-spin" size={16} />;
-      default: return <Circle className="text-slate-300" size={16} />;
+      case TaskStatus.DONE: return <CheckCircle className="text-emerald-500" size={18} />;
+      case TaskStatus.IN_PROGRESS: return <Loader2 className="text-blue-500 animate-spin" size={18} />;
+      default: return <Circle className="text-slate-300" size={18} />;
     }
   };
 
@@ -145,240 +181,231 @@ const SalesOpportunities: React.FC<SalesOpportunitiesProps> = ({
   };
 
   return (
-    <div className="space-y-6 animate-in slide-in-from-right-4 duration-500">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-500">
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold font-heading">Satış Hattı</h1>
-          <p className="text-slate-500 text-sm mt-1">Anlaşmaları, aşama geçişlerini ve eğitim taleplerini izleyin.</p>
+          <h1 className="text-3xl font-black font-heading text-slate-900 tracking-tight">Satış Hattı</h1>
+          <p className="text-slate-500 mt-2 font-medium">Fırsatları, teklifleri ve müşteri taleplerini yönetin.</p>
         </div>
-        <div className="flex gap-3">
-          <div className="bg-slate-100 p-1 rounded-xl flex">
-            <button 
-              onClick={() => setActiveTab('list')}
-              className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
-                activeTab === 'list' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-500 hover:text-slate-700'
-              }`}
-            >
-              Tüm Fırsatlar
-            </button>
-            <button 
-              onClick={() => setActiveTab('requests')}
-              className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
-                activeTab === 'requests' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-500 hover:text-slate-700'
-              }`}
-            >
-              Tarih Talepleri
-            </button>
-          </div>
-          <button 
+        <div className="flex items-center gap-4">
+           <div className="bg-white p-1.5 rounded-2xl border border-slate-200 hidden sm:flex">
+             <button 
+               onClick={() => setActiveTab('list')}
+               className={`px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-widest transition-all ${activeTab === 'list' ? 'bg-slate-900 text-white shadow-lg' : 'text-slate-500 hover:text-slate-900'}`}
+             >
+               Fırsatlar
+             </button>
+             <button 
+               onClick={() => setActiveTab('requests')}
+               className={`px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-widest transition-all ${activeTab === 'requests' ? 'bg-slate-900 text-white shadow-lg' : 'text-slate-500 hover:text-slate-900'}`}
+             >
+               Tarih Talepleri
+             </button>
+           </div>
+           <button 
             onClick={() => setIsModalOpen(true)}
-            className="flex items-center justify-center gap-2 bg-blue-600 text-white px-5 py-2.5 rounded-xl font-semibold hover:bg-blue-700 transition-all shadow-lg shadow-blue-500/20 active:scale-95"
+            className="group flex items-center justify-center gap-2 bg-blue-600 text-white px-6 py-3.5 rounded-2xl font-bold hover:bg-blue-700 transition-all shadow-xl shadow-blue-500/30 active:scale-95 uppercase text-xs tracking-widest"
           >
-            <Plus size={20} />
-            Yeni Fırsat
+            <Plus size={18} className="group-hover:rotate-90 transition-transform" />
+            <span>Yeni Fırsat</span>
           </button>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-6">
+      <div className="grid grid-cols-1 gap-8">
         {activeTab === 'list' ? (
           opportunities.map((opp) => {
             const currentFilter = taskFilters[opp.id] || 'Hepsi';
             const displayedTasks = opp.tasks.filter(t => currentFilter === 'Hepsi' || t.status === currentFilter);
 
             return (
-              <div key={opp.id} className="bg-white rounded-3xl border border-slate-200 shadow-sm hover:shadow-md transition-all overflow-hidden">
-                <div className="p-8">
-                  <div className="flex flex-col lg:flex-row lg:items-start gap-8">
-                    {/* Left Info Section */}
-                    <div className="flex-1 space-y-4">
-                      <div className="flex items-center gap-3">
-                        <span className="text-[10px] font-black text-slate-400 bg-slate-50 px-2 py-1 rounded-lg border border-slate-100 uppercase tracking-widest font-heading">{opp.id}</span>
-                        <span className="px-3 py-1 rounded-lg text-[10px] font-black uppercase bg-blue-50 text-blue-600 border border-blue-100 font-heading">
-                          {opp.trainingType}
-                        </span>
-                      </div>
-                      <h3 className="text-2xl font-black text-slate-900 leading-tight font-heading">{opp.customerName}</h3>
-                      <p className="text-slate-500 text-sm leading-relaxed max-w-2xl">{opp.description}</p>
-                      
-                      <div className="flex flex-wrap items-center gap-6 pt-2">
-                        <div className="flex items-center gap-2 text-[11px] font-bold text-slate-400 uppercase tracking-tighter font-heading">
-                          <CalendarIcon size={14} className="text-blue-500" />
-                          Talep: {opp.requestedDates.length > 0 ? opp.requestedDates.join(', ') : 'Belirlenmedi'}
-                        </div>
-                        <div className="flex items-center gap-2 text-[11px] font-bold text-slate-400 uppercase tracking-tighter font-heading">
-                          <Clock size={14} className="text-blue-500" />
-                          Oluşturma: {new Date(opp.createdAt).toLocaleDateString('tr-TR')}
-                        </div>
-                      </div>
+              <div key={opp.id} className="bg-white rounded-[2.5rem] p-8 border border-slate-200 shadow-sm hover:shadow-xl hover:shadow-slate-200/50 transition-all duration-300 group relative overflow-hidden">
+                <div className="flex flex-col xl:flex-row gap-10 relative z-10">
+                  {/* Left: Info */}
+                  <div className="flex-1 space-y-6">
+                    <div className="flex items-center gap-3">
+                       <span className="bg-slate-100 text-slate-500 text-[10px] font-black px-3 py-1 rounded-lg uppercase tracking-widest border border-slate-200">{opp.id}</span>
+                       <span className="bg-blue-50 text-blue-600 text-[10px] font-black px-3 py-1 rounded-lg uppercase tracking-widest border border-blue-100 flex items-center gap-1">
+                         <TrendingUp size={12} /> {opp.trainingType}
+                       </span>
+                    </div>
+                    
+                    <div>
+                      <h3 className="text-3xl font-black text-slate-900 font-heading leading-tight mb-2 group-hover:text-blue-600 transition-colors">{opp.customerName}</h3>
+                      <p className="text-slate-500 text-sm leading-relaxed max-w-3xl">{opp.description}</p>
+                    </div>
 
-                      {/* Task Sub-section */}
-                      <div className="mt-8 pt-6 border-t border-slate-50">
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
-                          <h4 className="text-[11px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2 font-heading">
-                            <ListTodo size={14} className="text-blue-600" />
-                            Gereken Görevler ({opp.tasks.filter(t => t.status === TaskStatus.DONE).length}/{opp.tasks.length})
-                          </h4>
-                          
-                          {/* Task Status Filter Bar */}
-                          <div className="flex items-center gap-1 bg-slate-50 p-1 rounded-xl border border-slate-100">
-                            {['Hepsi', TaskStatus.TODO, TaskStatus.IN_PROGRESS, TaskStatus.DONE].map((filter) => (
-                              <button
-                                key={filter}
-                                onClick={() => setOpportunityTaskFilter(opp.id, filter as any)}
-                                className={`px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${
-                                  currentFilter === filter 
-                                    ? 'bg-white text-blue-600 shadow-sm ring-1 ring-slate-200' 
-                                    : 'text-slate-400 hover:text-slate-600'
-                                }`}
-                              >
-                                {filter}
-                              </button>
-                            ))}
+                    <div className="flex flex-wrap items-center gap-6 pt-2">
+                       <div className="flex items-center gap-2 px-4 py-2 bg-slate-50 rounded-xl border border-slate-100">
+                          <CalendarIcon size={16} className="text-blue-500" />
+                          <div className="flex flex-col">
+                             <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Talep Tarihi</span>
+                             <span className="text-xs font-bold text-slate-700">{opp.requestedDates.length > 0 ? opp.requestedDates.join(', ') : 'Belirlenmedi'}</span>
                           </div>
+                       </div>
+                       <div className="flex items-center gap-2 px-4 py-2 bg-slate-50 rounded-xl border border-slate-100">
+                          <Clock size={16} className="text-blue-500" />
+                          <div className="flex flex-col">
+                             <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Oluşturma</span>
+                             <span className="text-xs font-bold text-slate-700">{new Date(opp.createdAt).toLocaleDateString('tr-TR')}</span>
+                          </div>
+                       </div>
+                       
+                       {/* AI Button */}
+                       <button 
+                         onClick={() => handleGenerateOutline(opp)}
+                         disabled={isGenerating}
+                         className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white rounded-xl font-bold text-xs uppercase tracking-widest shadow-lg shadow-fuchsia-500/20 hover:scale-105 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                       >
+                         {isGenerating ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
+                         {isGenerating ? 'Düşünüyor...' : 'AI Asistan'}
+                       </button>
+                    </div>
+
+                    {aiSuggestion && (
+                       <div className="mt-4 p-6 bg-slate-50 border border-slate-200 rounded-2xl relative animate-in fade-in zoom-in-95">
+                         <div className="absolute top-4 right-4 text-violet-500"><BrainCircuit size={20} /></div>
+                         <h4 className="text-xs font-black text-violet-600 uppercase tracking-widest mb-3">Gemini Önerisi</h4>
+                         <div className="prose prose-sm prose-slate max-w-none text-xs leading-relaxed font-medium">
+                           {aiSuggestion.split('\n').map((line, i) => <p key={i}>{line}</p>)}
+                         </div>
+                         <button onClick={() => setAiSuggestion(null)} className="mt-3 text-[10px] font-bold text-slate-400 hover:text-slate-600 underline">Kapat</button>
+                       </div>
+                    )}
+                  </div>
+
+                  {/* Right: Actions & Status */}
+                  <div className="w-full xl:w-[450px] flex flex-col gap-6 pl-0 xl:pl-10 xl:border-l border-slate-100">
+                     <div className="bg-slate-50 rounded-3xl p-6 border border-slate-100">
+                        <div className="flex items-center justify-between mb-4">
+                           <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Süreç Durumu</span>
+                           <span className={`text-[10px] font-black px-2 py-0.5 rounded uppercase tracking-widest ${
+                             opp.status === OpportunityStatus.WON ? 'bg-emerald-100 text-emerald-700' : 'bg-blue-100 text-blue-700'
+                           }`}>
+                             {opp.status}
+                           </span>
+                        </div>
+                        <StatusBar currentStatus={opp.status} onStatusClick={(s) => onUpdateStatus(opp.id, s)} />
+                     </div>
+
+                     <div className="flex-1 flex flex-col">
+                        <div className="flex items-center justify-between mb-4">
+                           <h4 className="text-[11px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                             <ListTodo size={14} className="text-slate-600" />
+                             Görevler
+                           </h4>
+                           <div className="flex bg-slate-100 p-0.5 rounded-lg">
+                              {[TaskStatus.TODO, TaskStatus.DONE].map(f => (
+                                <button key={f} onClick={() => setOpportunityTaskFilter(opp.id, f)} className={`p-1 rounded-md text-[8px] font-black uppercase transition-all ${taskFilters[opp.id] === f ? 'bg-white shadow-sm text-slate-900' : 'text-slate-400'}`}>
+                                   {f === TaskStatus.TODO ? 'Yapılacak' : 'Bitti'}
+                                </button>
+                              ))}
+                           </div>
                         </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-2 min-h-[40px]">
-                          {displayedTasks.length > 0 ? displayedTasks.map(task => (
-                            <div 
-                              key={task.id} 
-                              onClick={() => toggleTaskStatus(opp.id, task)}
-                              className="flex items-center justify-between p-2.5 rounded-xl border border-transparent hover:border-slate-100 hover:bg-slate-50 transition-all cursor-pointer group"
-                            >
-                              <div className="flex items-center gap-3">
+                        <div className="space-y-2 flex-1 max-h-[200px] overflow-y-auto pr-2 custom-scrollbar">
+                           {displayedTasks.map(task => (
+                             <div key={task.id} onClick={() => toggleTaskStatus(opp.id, task)} className="flex items-center gap-3 p-3 bg-white border border-slate-100 rounded-xl hover:border-blue-200 cursor-pointer group transition-all">
                                 {getTaskIcon(task.status)}
-                                <span className={`text-sm font-medium transition-all ${task.status === TaskStatus.DONE ? 'text-slate-300 line-through' : 'text-slate-600 group-hover:text-slate-900'}`}>
-                                  {task.text}
-                                </span>
-                              </div>
-                              <span className="text-[9px] font-bold text-slate-300 uppercase font-heading">{task.dueDate}</span>
-                            </div>
-                          )) : (
-                            <div className="col-span-2 py-4 text-center">
-                              <p className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">Seçilen filtrede görev bulunamadı</p>
-                            </div>
-                          )}
+                                <span className={`text-xs font-bold flex-1 ${task.status === TaskStatus.DONE ? 'text-slate-300 line-through' : 'text-slate-700 group-hover:text-slate-900'}`}>{task.text}</span>
+                                <span className="text-[9px] font-bold text-slate-300 bg-slate-50 px-1.5 py-0.5 rounded uppercase">{task.dueDate.slice(5)}</span>
+                             </div>
+                           ))}
+                           
+                           <div className="flex items-center gap-2 mt-2">
+                             <input 
+                               className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold outline-none focus:border-blue-400 transition-all placeholder:text-slate-300"
+                               placeholder="Hızlı görev ekle..."
+                               value={newTaskInput[opp.id]?.text || ''}
+                               onChange={(e) => setNewTaskInput({ ...newTaskInput, [opp.id]: { text: e.target.value, date: newTaskInput[opp.id]?.date || '' } })}
+                               onKeyDown={(e) => e.key === 'Enter' && handleTaskAdd(opp.id)}
+                             />
+                             <button onClick={() => handleTaskAdd(opp.id)} className="p-2 bg-blue-600 text-white rounded-xl shadow-lg shadow-blue-500/20 hover:bg-blue-700 transition-all">
+                               <Plus size={16} />
+                             </button>
+                           </div>
                         </div>
-
-                        {/* Inline Task Add */}
-                        <div className="mt-4 flex items-center gap-2 bg-slate-50/50 p-2 rounded-2xl border border-dashed border-slate-200">
-                          <input 
-                            type="text" 
-                            placeholder="Yeni görev yazın..." 
-                            className="flex-1 bg-transparent border-none text-sm font-medium outline-none px-2 py-1 placeholder:text-slate-300"
-                            value={newTaskInput[opp.id]?.text || ''}
-                            onChange={(e) => setNewTaskInput({ ...newTaskInput, [opp.id]: { text: e.target.value, date: newTaskInput[opp.id]?.date || '' } })}
-                            onKeyDown={(e) => e.key === 'Enter' && handleTaskAdd(opp.id)}
-                          />
-                          <input 
-                            type="date" 
-                            className="bg-white border border-slate-200 rounded-lg px-2 py-1 text-[10px] outline-none text-slate-400 font-heading"
-                            value={newTaskInput[opp.id]?.date || ''}
-                            onChange={(e) => setNewTaskInput({ ...newTaskInput, [opp.id]: { text: newTaskInput[opp.id]?.text || '', date: e.target.value } })}
-                          />
-                          <button 
-                            onClick={() => handleTaskAdd(opp.id)}
-                            className="p-1.5 bg-white text-blue-600 rounded-lg shadow-sm border border-slate-100 hover:bg-blue-600 hover:text-white transition-all active:scale-95"
-                          >
-                            <Plus size={16} />
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Status Bar & Actions Section */}
-                    <div className="w-full lg:w-96 flex flex-col gap-6">
-                      <div className="p-6 bg-slate-50 rounded-3xl border border-slate-100">
-                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4 font-heading">Mevcut Durum</p>
-                        <StatusBar 
-                          currentStatus={opp.status} 
-                          onStatusClick={(newStatus) => onUpdateStatus(opp.id, newStatus)} 
-                        />
-                      </div>
-                      
-                      <div className="flex gap-2">
-                         <button className="flex-1 py-3 px-4 bg-white border border-slate-200 rounded-2xl text-xs font-black uppercase tracking-widest text-slate-600 hover:bg-slate-50 transition-all flex items-center justify-center gap-2 font-heading">
-                           <FileText size={16} />
-                           Dosyalar
-                         </button>
-                         <button className="p-3 bg-white border border-slate-200 rounded-2xl text-slate-400 hover:text-slate-900 transition-all active:scale-95">
-                           <MoreVertical size={20} />
-                         </button>
-                      </div>
-                    </div>
+                     </div>
                   </div>
                 </div>
               </div>
             );
           })
         ) : (
-          <div className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm">
-             <table className="w-full text-left">
-              <thead>
-                <tr className="bg-slate-50/50 text-slate-400 text-[10px] font-black uppercase tracking-widest font-heading">
-                  <th className="px-8 py-5">Müşteri</th>
-                  <th className="px-8 py-5">Talep Edilen Tarihler</th>
-                  <th className="px-8 py-5">Eğitim Tipi</th>
-                  <th className="px-8 py-5 text-right">İşlem</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {opportunities.filter(o => o.requestedDates.length > 0).map((opp) => (
-                  <tr key={opp.id} className="hover:bg-slate-50 transition-colors">
-                    <td className="px-8 py-5">
-                      <p className="font-bold text-slate-900 font-heading">{opp.customerName}</p>
-                      <p className="text-[10px] font-bold text-slate-400 font-heading">{opp.id}</p>
-                    </td>
-                    <td className="px-8 py-5">
-                      {opp.requestedDates.map((date, i) => (
-                        <span key={i} className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 text-amber-700 rounded-xl text-xs font-black border border-amber-100 mr-2 shadow-sm font-heading">
-                          <CalendarDays size={12} />
-                          {date}
-                        </span>
-                      ))}
-                    </td>
-                    <td className="px-8 py-5">
-                      <span className="text-sm font-semibold text-slate-600">{opp.trainingType}</span>
-                    </td>
-                    <td className="px-8 py-5 text-right">
-                      <button className="px-6 py-2 bg-blue-50 text-blue-600 rounded-xl font-black text-xs uppercase tracking-widest hover:bg-blue-600 hover:text-white transition-all font-heading active:scale-95">
-                        Şimdi Planla
-                      </button>
-                    </td>
+          /* Table View for Date Requests */
+          <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-sm overflow-hidden p-8">
+             <div className="overflow-x-auto">
+               <table className="w-full text-left">
+                <thead>
+                  <tr className="border-b border-slate-100">
+                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Müşteri</th>
+                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Tarihler</th>
+                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Konu</th>
+                    <th className="px-6 py-4 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest">Aksiyon</th>
                   </tr>
-                ))}
-                {opportunities.filter(o => o.requestedDates.length > 0).length === 0 && (
-                   <tr>
-                    <td colSpan={4} className="px-8 py-20 text-center">
-                      <p className="text-slate-400 font-medium">Bekleyen tarih talebi bulunmamaktadır.</p>
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-             </table>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {opportunities.filter(o => o.requestedDates.length > 0).map((opp) => (
+                    <tr key={opp.id} className="group hover:bg-slate-50/50 transition-colors">
+                      <td className="px-6 py-6">
+                        <div className="font-bold text-slate-900 text-sm">{opp.customerName}</div>
+                        <div className="text-[10px] font-bold text-slate-400 mt-0.5">{opp.id}</div>
+                      </td>
+                      <td className="px-6 py-6">
+                        <div className="flex flex-wrap gap-2">
+                          {opp.requestedDates.map((date, i) => (
+                            <span key={i} className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 text-amber-700 rounded-lg text-xs font-black border border-amber-100">
+                              <CalendarDays size={12} />
+                              {date}
+                            </span>
+                          ))}
+                        </div>
+                      </td>
+                      <td className="px-6 py-6">
+                        <span className="text-xs font-bold text-slate-600 bg-slate-100 px-2 py-1 rounded-md">{opp.trainingType}</span>
+                      </td>
+                      <td className="px-6 py-6 text-right">
+                        <button className="px-4 py-2 bg-slate-900 text-white rounded-xl text-xs font-bold uppercase tracking-widest hover:bg-slate-800 transition-all shadow-lg shadow-slate-900/10">
+                          Planla
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                  {opportunities.filter(o => o.requestedDates.length > 0).length === 0 && (
+                     <tr><td colSpan={4} className="py-20 text-center text-slate-400 font-medium">Tarih talebi bulunamadı.</td></tr>
+                  )}
+                </tbody>
+               </table>
+             </div>
           </div>
         )}
       </div>
 
       {/* New Opportunity Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-md animate-in fade-in duration-300">
-          <div className="bg-white rounded-3xl w-full max-w-xl shadow-2xl animate-in zoom-in-95 duration-300 border border-white/20">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-in fade-in duration-300">
+          <div className="bg-white rounded-[2rem] w-full max-w-xl shadow-2xl animate-in zoom-in-95 duration-300 border border-white/20">
             <div className="p-8 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
-              <div>
-                <h2 className="text-2xl font-black text-slate-900 leading-none font-heading">Yeni Satış Fırsatı</h2>
-                <p className="text-slate-500 text-sm mt-2">Müşteri ihtiyaçlarını ve süreci başlatın.</p>
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-blue-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-blue-500/30">
+                  <TrendingUp size={24} />
+                </div>
+                <div>
+                  <h2 className="text-xl font-black text-slate-900 font-heading">Yeni Fırsat</h2>
+                  <p className="text-slate-500 text-xs font-bold mt-0.5 uppercase tracking-wide">Satış Sürecini Başlat</p>
+                </div>
               </div>
               <button onClick={() => setIsModalOpen(false)} className="p-2.5 text-slate-400 hover:text-slate-900 hover:bg-white rounded-full transition-all border border-transparent hover:border-slate-100">
                 <X size={20} />
               </button>
             </div>
+            
             <form onSubmit={handleSubmit} className="p-8 space-y-6">
               <div className="space-y-2">
-                <label className="text-sm font-black text-slate-700 uppercase tracking-widest font-heading">Müşteri Seçin</label>
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">Müşteri</label>
                 <select 
                   required
-                  className="w-full px-4 py-3 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all appearance-none bg-white font-medium"
+                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all font-bold text-slate-900"
                   value={formData.customerId}
                   onChange={(e) => setFormData({...formData, customerId: e.target.value})}
                 >
@@ -391,9 +418,9 @@ const SalesOpportunities: React.FC<SalesOpportunitiesProps> = ({
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
-                  <label className="text-sm font-black text-slate-700 uppercase tracking-widest font-heading">Eğitim Tipi</label>
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Eğitim Tipi</label>
                   <select 
-                    className="w-full px-4 py-3 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all bg-white font-medium"
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all font-bold text-slate-900"
                     value={formData.trainingType}
                     onChange={(e) => setFormData({...formData, trainingType: e.target.value})}
                   >
@@ -403,10 +430,10 @@ const SalesOpportunities: React.FC<SalesOpportunitiesProps> = ({
                   </select>
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-black text-slate-700 uppercase tracking-widest font-heading">Tercih Edilen Tarih</label>
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Hedef Tarih</label>
                   <input 
                     type="date" 
-                    className="w-full px-4 py-3 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all font-heading"
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all font-bold text-slate-900"
                     value={formData.dateRequest}
                     onChange={(e) => setFormData({...formData, dateRequest: e.target.value})}
                   />
@@ -414,10 +441,10 @@ const SalesOpportunities: React.FC<SalesOpportunitiesProps> = ({
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-black text-slate-700 uppercase tracking-widest font-heading">Açıklama</label>
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Notlar / Kapsam</label>
                 <textarea 
                   rows={4}
-                  className="w-full px-4 py-3 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all resize-none"
+                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all resize-none font-medium text-sm"
                   placeholder="Kapsamı ve müşteri ihtiyaçlarını özetleyin..."
                   value={formData.description}
                   onChange={(e) => setFormData({...formData, description: e.target.value})}
@@ -428,14 +455,15 @@ const SalesOpportunities: React.FC<SalesOpportunitiesProps> = ({
                 <button 
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="px-8 py-3 border border-slate-200 text-slate-600 rounded-2xl font-black text-xs uppercase tracking-widest font-heading hover:bg-slate-50 transition-all"
+                  className="px-6 py-3 border border-slate-200 text-slate-600 rounded-xl font-bold hover:bg-slate-50 transition-all uppercase text-xs tracking-widest"
                 >
-                  İptal
+                  Vazgeç
                 </button>
                 <button 
                   type="submit"
-                  className="px-10 py-3 bg-blue-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest font-heading hover:bg-blue-700 transition-all shadow-xl shadow-blue-500/25 active:scale-[0.98]"
+                  className="px-8 py-3 bg-slate-900 text-white rounded-xl font-bold hover:bg-slate-800 transition-all shadow-xl shadow-slate-900/20 active:scale-[0.98] uppercase text-xs tracking-widest flex items-center gap-2"
                 >
+                  <Plus size={16} />
                   Fırsatı Başlat
                 </button>
               </div>
