@@ -112,9 +112,21 @@ const InstructorCalendar: React.FC<InstructorCalendarProps> = ({
     setExpandedDay(null);
   };
 
+  const isDateInRange = (checkDate: Date, startDateStr: string, endDateStr: string) => {
+    const check = new Date(checkDate);
+    check.setHours(0, 0, 0, 0);
+    
+    const start = new Date(startDateStr);
+    start.setHours(0, 0, 0, 0);
+    
+    const end = new Date(endDateStr);
+    end.setHours(0, 0, 0, 0);
+    
+    return check >= start && check <= end;
+  };
+
   const getEventsForDate = (date: Date) => {
-    const dateStr = date.toISOString().split('T')[0];
-    return events.filter(e => e.startDate.startsWith(dateStr));
+    return events.filter(e => isDateInRange(date, e.startDate, e.endDate));
   };
 
   const getRequestsForDate = (date: Date) => {
@@ -123,9 +135,13 @@ const InstructorCalendar: React.FC<InstructorCalendarProps> = ({
   };
 
   const getInstructorScheduleForDate = (date: Date) => {
-    const dateStr = date.toISOString().split('T')[0];
     return instructors.map(instructor => {
-      const event = events.find(e => e.instructorName === instructor.name && e.startDate.startsWith(dateStr));
+      // Find event where instructor matches AND date is within range
+      const event = events.find(e => 
+        e.instructorName === instructor.name && 
+        isDateInRange(date, e.startDate, e.endDate)
+      );
+      
       const status = instructor.isOnLeave ? 'İzinde' : (event ? 'Eğitimde' : 'Müsait');
       return {
         instructor,
@@ -136,8 +152,11 @@ const InstructorCalendar: React.FC<InstructorCalendarProps> = ({
   };
 
   const getInstructorAvailabilityForDate = (date: Date) => {
-    const dateStr = date.toISOString().split('T')[0];
-    const trainingInstructors = new Set(events.filter(e => e.startDate.startsWith(dateStr)).map(e => e.instructorName));
+    const trainingInstructors = new Set(
+      events
+        .filter(e => isDateInRange(date, e.startDate, e.endDate))
+        .map(e => e.instructorName)
+    );
     const leaveInstructors = instructors.filter(ins => ins.isOnLeave);
     
     return {
@@ -177,8 +196,10 @@ const InstructorCalendar: React.FC<InstructorCalendarProps> = ({
 
   const getInstructorStatusForCurrentDate = (instructorName: string, instructorIsOnLeave: boolean) => {
     if (instructorIsOnLeave) return 'İzinde';
-    const dateStr = currentDate.toISOString().split('T')[0];
-    const hasEvent = events.some(e => e.instructorName === instructorName && e.startDate.startsWith(dateStr));
+    const hasEvent = events.some(e => 
+      e.instructorName === instructorName && 
+      isDateInRange(currentDate, e.startDate, e.endDate)
+    );
     return hasEvent ? 'Eğitimde' : 'Müsait';
   };
 
@@ -402,9 +423,7 @@ const InstructorCalendar: React.FC<InstructorCalendarProps> = ({
               </>
             )}
             
-            {/* ... (Keep Week and Day view logic but wrap in similar updated containers if needed, currently reusing the same layout logic so it inherits the font-body) ... */}
-            {/* For brevity, assuming Week and Day views follow similar structure as provided in previous turns, but now rendered within this updated main container */}
-             {activeView === 'week' && (
+            {activeView === 'week' && (
               <div className="grid grid-cols-7 h-full min-h-[600px] divide-x divide-slate-100">
                 {getWeekDates().map((date, idx) => {
                   const dayEvents = getEventsForDate(date);
@@ -488,7 +507,6 @@ const InstructorCalendar: React.FC<InstructorCalendarProps> = ({
             
             {activeView === 'day' && (
                <div className="p-8 max-w-3xl mx-auto space-y-8">
-                {/* Day view content reused from previous turn but rendered here */}
                   <div className="flex items-center justify-between pb-6 border-b border-slate-100">
                   <div className="flex items-center gap-6">
                     <div className="w-16 h-16 bg-blue-600 text-white rounded-2xl flex flex-col items-center justify-center shadow-xl shadow-blue-500/20">
@@ -501,7 +519,7 @@ const InstructorCalendar: React.FC<InstructorCalendarProps> = ({
                     </div>
                   </div>
                   </div>
-                  {/* ... events listing ... */}
+                  
                   <div className="space-y-4">
                   {getEventsForDate(currentDate).map(e => {
                     const conf = getStatusConfig(e.status);
@@ -553,7 +571,6 @@ const InstructorCalendar: React.FC<InstructorCalendarProps> = ({
                 />
               </div>
 
-              {/* ... Filters and list ... */}
               <div className="space-y-4 pt-4 border-t border-slate-100">
               {filteredInstructors.length > 0 ? filteredInstructors.map((ins) => {
                 const status = getInstructorStatusForCurrentDate(ins.name, ins.isOnLeave);
@@ -586,7 +603,7 @@ const InstructorCalendar: React.FC<InstructorCalendarProps> = ({
         </div>
       </div>
       
-      {/* Modals reused from previous implementation but ensured they are rendered */}
+      {/* Modals */}
       {selectedInstructorForDetail && (
          <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-in fade-in duration-300">
           <div className="bg-white rounded-[2.5rem] w-full max-w-lg shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300 border border-white/20">
@@ -604,8 +621,31 @@ const InstructorCalendar: React.FC<InstructorCalendarProps> = ({
                    </div>
                 </div>
              </div>
-             {/* ... content ... */}
+             
              <div className="p-8 pt-16 space-y-8">
+               <div className="grid grid-cols-2 gap-4">
+                  <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">E-posta</p>
+                    <p className="text-sm font-bold text-slate-900">{selectedInstructorForDetail.email}</p>
+                  </div>
+                  <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Telefon</p>
+                    <p className="text-sm font-bold text-slate-900">{selectedInstructorForDetail.phone}</p>
+                  </div>
+               </div>
+               
+               <button 
+                  onClick={() => onToggleLeave(selectedInstructorForDetail.id)}
+                  className={`w-full py-4 rounded-xl font-bold uppercase tracking-widest text-xs transition-all flex items-center justify-center gap-2 ${
+                    selectedInstructorForDetail.isOnLeave 
+                    ? 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100' 
+                    : 'bg-rose-50 text-rose-600 hover:bg-rose-100'
+                  }`}
+               >
+                 {selectedInstructorForDetail.isOnLeave ? <Check size={16} /> : <XCircle size={16} />}
+                 {selectedInstructorForDetail.isOnLeave ? 'İzin Durumunu Kaldır (Müsait)' : 'İzinli Olarak İşaretle'}
+               </button>
+
                <button onClick={() => setSelectedInstructorForDetail(null)} className="w-full py-3 bg-slate-900 text-white rounded-xl font-bold uppercase tracking-widest text-xs">Kapat</button>
              </div>
           </div>
@@ -620,15 +660,53 @@ const InstructorCalendar: React.FC<InstructorCalendarProps> = ({
               <button onClick={() => setIsAddModalOpen(false)}><X size={20} className="text-slate-400 hover:text-slate-900" /></button>
             </div>
             <form onSubmit={handleAddSubmit} className="p-8 space-y-5">
-               {/* Form fields reuse */}
                <div className="space-y-2">
                  <label className="text-xs font-black text-slate-400 uppercase tracking-widest">Başlık</label>
-                 <input className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-900 outline-none focus:ring-2 focus:ring-blue-500/20" value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} />
+                 <input className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-900 outline-none focus:ring-2 focus:ring-blue-500/20" value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} placeholder="Eğitim başlığı..." required />
                </div>
-               {/* ... other inputs ... */}
+               
+               <div className="space-y-2">
+                 <label className="text-xs font-black text-slate-400 uppercase tracking-widest">Eğitmen</label>
+                 <select className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-900 outline-none focus:ring-2 focus:ring-blue-500/20" value={formData.instructorName} onChange={e => setFormData({...formData, instructorName: e.target.value})} required>
+                   <option value="">Seçiniz...</option>
+                   {instructors.map(i => <option key={i.id} value={i.name}>{i.name}</option>)}
+                 </select>
+               </div>
+
+               <div className="grid grid-cols-2 gap-4">
+                 <div className="space-y-2">
+                   <label className="text-xs font-black text-slate-400 uppercase tracking-widest">Başlangıç</label>
+                   <input type="datetime-local" className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-900 outline-none focus:ring-2 focus:ring-blue-500/20" value={formData.startDate} onChange={e => setFormData({...formData, startDate: e.target.value})} required />
+                 </div>
+                 <div className="space-y-2">
+                   <label className="text-xs font-black text-slate-400 uppercase tracking-widest">Bitiş</label>
+                   <input type="datetime-local" className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-900 outline-none focus:ring-2 focus:ring-blue-500/20" value={formData.endDate} onChange={e => setFormData({...formData, endDate: e.target.value})} required />
+                 </div>
+               </div>
+
                <button type="submit" className="w-full py-3 bg-blue-600 text-white rounded-xl font-bold uppercase tracking-widest text-xs shadow-lg shadow-blue-500/30">Ekle</button>
             </form>
           </div>
+        </div>
+      )}
+
+      {isDateEditModalOpen && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-in fade-in duration-300">
+           <div className="bg-white rounded-[2rem] p-8 w-full max-w-sm shadow-2xl">
+             <h3 className="font-bold text-lg mb-4 text-slate-900">Tarihi Güncelle</h3>
+             <form onSubmit={handleUpdateDateSubmit} className="space-y-4">
+               <input 
+                 type="date" 
+                 value={newRequestedDate} 
+                 onChange={(e) => setNewRequestedDate(e.target.value)}
+                 className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-900"
+               />
+               <div className="flex gap-2">
+                 <button type="button" onClick={() => setIsDateEditModalOpen(false)} className="flex-1 py-3 border border-slate-200 rounded-xl font-bold text-slate-500">İptal</button>
+                 <button type="submit" className="flex-1 py-3 bg-slate-900 text-white rounded-xl font-bold">Güncelle</button>
+               </div>
+             </form>
+           </div>
         </div>
       )}
     </div>
